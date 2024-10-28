@@ -10,7 +10,7 @@ import logging
 class TestMainFunctions(unittest.TestCase):
     
     def setUp(self):
-        # Создание тестовых данных для использования в тестах
+        # Creating test data for use in tests
         self.train_data = pd.DataFrame({
             'ID_code': ['id_1', 'id_2', 'id_3'],
             'feature1': [1, 2, 3],
@@ -25,22 +25,22 @@ class TestMainFunctions(unittest.TestCase):
         })
     
     def test_add_magic_feature(self):
-        # Проверка корректности работы функции add_magic_feature
+        # Checking the correctness of the add_magic_feature function
         result_train, result_test = add_magic_feature(
             self.train_data.drop(['ID_code', 'target'], axis=1),
             self.test_data.drop(['ID_code'], axis=1)
         )
         
-        # Проверяем, что размеры данных совпадают
+        # Checking that the data dimensions match
         self.assertEqual(result_train.shape[0], self.train_data.shape[0])
         self.assertEqual(result_test.shape[0], self.test_data.shape[0])
         
-        # Проверка наличия новых магических признаков
+        # Checking for the presence of new magic features
         self.assertTrue('feature1_magic' in result_train.columns)
         self.assertTrue('feature2_magic' in result_test.columns)
     
     def test_model_training(self):
-        # Проверка, что модель обучается без ошибок
+        # Checking that the model trains without errors
         X = self.train_data.drop(['ID_code', 'target'], axis=1)
         y = self.train_data['target']
         
@@ -54,18 +54,18 @@ class TestMainFunctions(unittest.TestCase):
             model.fit(X_train, y_train)
             preds = model.predict_proba(X_val)[:, 1]
 
-            # Проверка, что в выборке для валидации присутствуют оба класса
+            # Checking that both classes are present in the validation set
             if len(np.unique(y_val)) == 2:
                 auc = roc_auc_score(y_val, preds)
-                # Проверка, что AUC находится в диапазоне от 0 до 1
+                # Checking that AUC is in the range from 0 to 1
                 self.assertGreaterEqual(auc, 0)
                 self.assertLessEqual(auc, 1)
             else:
-                # Если один класс, то пропустить расчёт AUC
+                # If only one class is present, skip AUC calculation
                 logging.info(f"Skipping AUC calculation for this fold due to only one class in y_val: {np.unique(y_val)}")
     
     def tearDown(self):
-        # Очистка после тестов, если необходимо
+        # Cleanup after tests, if needed
         pass
 
 if __name__ == '__main__':

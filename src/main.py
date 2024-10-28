@@ -6,10 +6,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_auc_score
 import logging
 
-# Настройка логирования
+# Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Оптимизация функции добавления "магических" фичей
+# Function to optimize adding "magic" features
 def add_magic_feature(df, df_test):
     combined = pd.concat([df, df_test])
     magic_features = combined.apply(lambda col: col.map(col.value_counts()), axis=0)
@@ -21,43 +21,43 @@ def add_magic_feature(df, df_test):
     
     return df, df_test
 
-# Основной блок, защищённый проверкой
+# Main block with protection
 if __name__ == "__main__":
     logging.info('Start of the process...')
     
-    # Загрузка данных
+    # Loading data
     logging.info('Loading datasets...')
     train = pd.read_csv('train.csv')
     test = pd.read_csv('test.csv')
     sample_submission = pd.read_csv('sample_submission.csv')
 
-    # Определение признаков и целевой переменной
+    # Defining features and target variable
     X = train.drop(['ID_code', 'target'], axis=1)
     y = train['target']
     X_test = test.drop(['ID_code'], axis=1)
 
-    # Добавление магических фичей
+    # Adding magic features
     logging.info('Adding magic features...')
     X, X_test = add_magic_feature(X, X_test)
 
-    # Масштабирование признаков
+    # Scaling features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     X_test_scaled = scaler.transform(X_test)
 
-    # Использование StratifiedKFold для более точного разделения данных
+    # Using StratifiedKFold for more accurate data splitting
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    # Переменные для отслеживания лучшего результата
+    # Variables to track the best result
     best_auc = 0
     best_y_pred = None
 
-    # Цикл по фолдам
+    # Loop through folds
     for fold, (train_index, val_index) in enumerate(skf.split(X_scaled, y)):
         X_train, X_val = X_scaled[train_index], X_scaled[val_index]
         y_train, y_val = y.iloc[train_index], y.iloc[val_index]
         
-        # Инициализация модели LightGBM с регуляризацией
+        # Initialize LightGBM model with regularization
         lgb_model = lgb.LGBMClassifier(
             boosting_type='gbdt',
             objective='binary',
@@ -71,7 +71,7 @@ if __name__ == "__main__":
             random_state=42
         )
         
-        # Обучение модели с использованием ранней остановки
+        # Training the model with early stopping
         logging.info(f'Training LightGBM model for fold {fold + 1}...')
         lgb_model.fit(
             X_train, y_train,
@@ -83,18 +83,18 @@ if __name__ == "__main__":
             ]
         )
         
-        # Предсказания вероятностей на валидационном наборе данных
+        # Predicting probabilities on the validation set
         y_val_pred = lgb_model.predict_proba(X_val)[:, 1]
         val_auc = roc_auc_score(y_val, y_val_pred)
         logging.info(f'Validation AUC-ROC for fold {fold + 1}: {val_auc}')
 
-        # Если текущий фолд показывает лучший результат, сохранить его предсказания на тестовом наборе
+        # If the current fold shows the best result, save its predictions on the test set
         if val_auc > best_auc:
             best_auc = val_auc
             best_y_pred = lgb_model.predict_proba(X_test_scaled)[:, 1]
             logging.info(f'New best AUC-ROC found: {best_auc} on fold {fold + 1}')
 
-    # Формирование финального файла для отправки на Kaggle
+    # Generating the final submission file for Kaggle
     logging.info('Generating submission file with the best model...')
     submission = pd.DataFrame({
         'ID_code': test['ID_code'],
